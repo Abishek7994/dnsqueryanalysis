@@ -15,8 +15,12 @@ const API = configuredApiUrl
       ? configuredApiUrl
       : `https://${configuredApiUrl}`
     ).replace(/\/+$/, "")
-  : isLocalDevelopment ? "http://localhost:8000" : window.location.origin;
-const WS = `${API.replace(/^http:/, "ws:").replace(/^https:/, "wss:")}/ws/dns`;
+  : isLocalDevelopment ? "http://localhost:8000" : "";
+const WS = API
+  ? `${API.replace(/^http:/, "ws:").replace(/^https:/, "wss:")}/ws/dns`
+  : "";
+const apiConfigurationMessage =
+  "Backend API is not configured. Set the VITE_API_URL GitHub Actions variable and redeploy.";
 type Status = "NORMAL" | "SUSPICIOUS" | "MALFORMED" | "CRITICAL";
 type Event = {
   timestamp: string; client_ip: string; domain: string; record_type: string;
@@ -51,6 +55,10 @@ function App() {
   const [notice, setNotice] = useState("");
 
   const loadStats = useCallback(async () => {
+    if (!API) {
+      setNotice(apiConfigurationMessage);
+      return;
+    }
     try {
       const response = await fetch(`${API}/api/stats`);
       if (!response.ok) throw new Error(`Stats request failed (${response.status})`);
@@ -63,6 +71,11 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!API) {
+      setConnected(false);
+      setNotice(apiConfigurationMessage);
+      return;
+    }
     let socket: WebSocket | null = null;
     let retryTimer: number;
     let stopped = false;
@@ -87,6 +100,11 @@ function App() {
 
   useEffect(() => {
     let active = true;
+    if (!API) {
+      setValidation(null);
+      setValidationError(apiConfigurationMessage);
+      return () => { active = false; };
+    }
     const timer = window.setTimeout(async () => {
       try {
         const response = await fetch(`${API}/api/validate`, {
@@ -109,6 +127,10 @@ function App() {
   }, [domain]);
 
   const sendControl = async (action: "start" | "pause" | "burst") => {
+    if (!API) {
+      setNotice(apiConfigurationMessage);
+      return;
+    }
     setControlBusy(true);
     try {
       const response = await fetch(`${API}/api/stream/control`, {
@@ -166,7 +188,7 @@ function App() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <div className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs ${connected ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-rose-500/30 bg-rose-500/10 text-rose-300"}`}>
-              {connected ? <Wifi size={14} /> : <WifiOff size={14} />} {connected ? "WebSocket live" : "Reconnecting"}
+              {connected ? <Wifi size={14} /> : <WifiOff size={14} />} {connected ? "WebSocket live" : API ? "Reconnecting" : "Backend not configured"}
               <span className={`h-1.5 w-1.5 rounded-full ${connected ? "animate-pulse bg-emerald-400" : "bg-rose-400"}`} />
             </div>
             <button disabled={controlBusy} onClick={() => void sendControl(running ? "pause" : "start")} className="inline-flex items-center gap-2 rounded-lg border border-[#2b3747] bg-[#151e2b] px-3 py-2 text-sm hover:border-cyan-500/50 disabled:opacity-50">
