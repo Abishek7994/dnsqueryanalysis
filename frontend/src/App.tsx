@@ -8,8 +8,18 @@ import {
   Tooltip, XAxis, YAxis,
 } from "recharts";
 
-const API = "http://localhost:8000";
-const WS = "ws://localhost:8000/ws/dns";
+const isLocalDevelopment = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+const configuredApiUrl = import.meta.env.VITE_API_URL as string | undefined;
+const API = configuredApiUrl
+  ? (configuredApiUrl.startsWith("http://") || configuredApiUrl.startsWith("https://")
+      ? configuredApiUrl
+      : `https://${configuredApiUrl}`
+    ).replace(/\/$/, "")
+  : isLocalDevelopment ? "http://localhost:8000" : "";
+const apiUrlForWebSocket = API || `${window.location.origin}`;
+const WS = isLocalDevelopment && !configuredApiUrl
+  ? "ws://localhost:8000/ws/dns"
+  : `${apiUrlForWebSocket.replace(/^http:/, "ws:").replace(/^https:/, "wss:")}/ws/dns`;
 type Status = "NORMAL" | "SUSPICIOUS" | "MALFORMED" | "CRITICAL";
 type Event = {
   timestamp: string; client_ip: string; domain: string; record_type: string;
