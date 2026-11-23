@@ -21,12 +21,30 @@ const mimeTypes = {
 };
 
 const server = createServer((request, response) => {
-  const pathname = decodeURIComponent((request.url || "/").split("?")[0]);
-  const requestedPath = normalize(pathname).replace(/^(\.\.[/\\])+/, "");
-  let filePath = join(root, requestedPath);
+  let pathname;
+  try {
+    pathname = decodeURIComponent(new URL(request.url || "/", "http://localhost").pathname);
+  } catch {
+    response.statusCode = 400;
+    response.end("Bad Request");
+    return;
+  }
 
-  if (!filePath.startsWith(root) || !existsSync(filePath) || statSync(filePath).isDirectory()) {
+  const relativePath = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
+  let filePath = join(root, normalize(relativePath));
+
+  if (
+    !filePath.startsWith(root) ||
+    !existsSync(filePath) ||
+    statSync(filePath).isDirectory()
+  ) {
     filePath = join(root, "index.html");
+  }
+
+  if (request.method === "HEAD") {
+    response.setHeader("Content-Type", mimeTypes[extname(filePath)] || "application/octet-stream");
+    response.end();
+    return;
   }
 
   response.setHeader("Content-Type", mimeTypes[extname(filePath)] || "application/octet-stream");
