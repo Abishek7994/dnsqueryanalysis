@@ -14,7 +14,7 @@ services:
     runtime: node
     rootDir: frontend
     buildCommand: npm ci && npm run build
-    startCommand: npm start -- --port $PORT
+    startCommand: npm start
     envVars:
       - key: VITE_API_URL
         sync: false
